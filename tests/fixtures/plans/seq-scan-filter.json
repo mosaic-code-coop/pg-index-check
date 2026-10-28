@@ -1,0 +1,20 @@
+{
+  "Node Type": "Seq Scan",
+  "Parallel Aware": false,
+  "Async Capable": false,
+  "Relation Name": "orders",
+  "Schema": "public",
+  "Alias": "orders",
+  "Startup Cost": 10000000000,
+  "Total Cost": 10000000022.75,
+  "Plan Rows": 5,
+  "Plan Width": 52,
+  "Output": [
+    "id",
+    "org_id",
+    "customer_id",
+    "status",
+    "created_at"
+  ],
+  "Filter": "(orders.customer_id = $1)"
+}

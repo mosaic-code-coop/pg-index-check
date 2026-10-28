@@ -1,0 +1,41 @@
+{
+  "Node Type": "Limit",
+  "Parallel Aware": false,
+  "Async Capable": false,
+  "Startup Cost": 0.15,
+  "Total Cost": 62,
+  "Plan Rows": 5,
+  "Plan Width": 52,
+  "Output": [
+    "id",
+    "org_id",
+    "customer_id",
+    "status",
+    "created_at"
+  ],
+  "Plans": [
+    {
+      "Node Type": "Index Scan",
+      "Parent Relationship": "Outer",
+      "Parallel Aware": false,
+      "Async Capable": false,
+      "Scan Direction": "Forward",
+      "Index Name": "orders_pkey",
+      "Relation Name": "orders",
+      "Schema": "public",
+      "Alias": "orders",
+      "Startup Cost": 0.15,
+      "Total Cost": 62,
+      "Plan Rows": 5,
+      "Plan Width": 52,
+      "Output": [
+        "id",
+        "org_id",
+        "customer_id",
+        "status",
+        "created_at"
+      ],
+      "Filter": "(orders.status = $1)"
+    }
+  ]
+}

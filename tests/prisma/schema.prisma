@@ -1,0 +1,14 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Invoice {
+  id         Int @id @default(autoincrement())
+  customerId Int @map("customer_id")
+
+  @@map("invoices")
+}
