@@ -1,0 +1,84 @@
+{
+  "name": "@mosaic-code/pg-index-check",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Fail your test suite when PostgreSQL queries have no usable index",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "prisma generate && vitest run -c vitest.integration.config.ts",
+    "test:integration:setup": "bash scripts/integration-test-setup.sh",
+    "prepublishOnly": "npm run build",
+    "release:patch": "npm version patch && git push --follow-tags && npm run build && npm publish",
+    "release:minor": "npm version minor && git push --follow-tags && npm run build && npm publish",
+    "release:major": "npm version major && git push --follow-tags && npm run build && npm publish",
+    "release:dry": "conventional-changelog -p conventionalcommits -u",
+    "version": "conventional-changelog -p conventionalcommits -i CHANGELOG.md -s && git add CHANGELOG.md"
+  },
+  "keywords": [
+    "pg",
+    "postgres",
+    "postgresql",
+    "index",
+    "explain",
+    "query-plan",
+    "testing",
+    "pg_stat_statements",
+    "prisma"
+  ],
+  "engines": {
+    "node": ">=22.9.0",
+    "npm": ">=11.14.0"
+  },
+  "license": "NoHarm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mosaic-code-coop/pg-index-check.git"
+  },
+  "homepage": "https://github.com/mosaic-code-coop/pg-index-check#readme",
+  "bugs": {
+    "url": "https://github.com/mosaic-code-coop/pg-index-check/issues"
+  },
+  "author": "Chris Jensen <2920476+chrisjensen@users.noreply.github.com> (https://github.com/chrisjensen)",
+  "peerDependencies": {
+    "pg": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@mosaic-code/pg-source-comments": "^0.4.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "conventional-changelog-cli": "^5.0.0",
+    "pg": "^8.23.1",
+    "prisma": "^7.10.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
