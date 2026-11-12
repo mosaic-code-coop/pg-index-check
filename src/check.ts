@@ -5,9 +5,10 @@ import {
   leadingIndexColumns,
   preparePlanningSession,
   serverMajorVersion,
+  tableLeadingColumns,
 } from './explain.js';
 import { applyIgnoreRules } from './ignore.js';
-import { evaluatePlan, indexesWithConditions } from './plan-rules.js';
+import { evaluatePlan, indexesWithConditions, planTables } from './plan-rules.js';
 import { formatReport } from './report.js';
 import { parseSourceLocation } from './statement-text.js';
 import { FindingKind, UnplannableMode } from './types.js';
@@ -102,8 +103,9 @@ async function evaluate(client: pg.Client, plan: PlanNode, majorVersion: number)
   const leadingColumns = checkTrailingIndexColumns
     ? await leadingIndexColumns(client, indexesWithConditions(plan))
     : new Map<string, string>();
+  const leadingColumnsByTable = await tableLeadingColumns(client, planTables(plan));
 
-  return evaluatePlan(plan, { leadingColumns, checkTrailingIndexColumns });
+  return evaluatePlan(plan, { leadingColumns, leadingColumnsByTable, checkTrailingIndexColumns });
 }
 
 async function withClient<T>(connectionString: string, work: (client: pg.Client) => Promise<T>): Promise<T> {

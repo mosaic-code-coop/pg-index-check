@@ -10,6 +10,12 @@ export interface PlanRuleContext {
    * checkTrailingIndexColumns is true.
    */
   leadingColumns: Map<string, string>;
+  /**
+   * Columns that lead some btree index, per table (`schema.table`). Used to
+   * suppress a FULL_INDEX_SCAN when a usable index for the filtered column
+   * exists — the generic planner just picked a different one.
+   */
+  leadingColumnsByTable: Map<string, Set<string>>;
   /** PostgreSQL 18+ can skip-scan, so trailing-column conditions are fine there */
   checkTrailingIndexColumns: boolean;
 }
@@ -46,9 +52,16 @@ export function indexesWithConditions(plan: PlanNode): string[] {
 export function evaluatePlan(plan: PlanNode, context: PlanRuleContext): PlanFinding[] {
   return flattenPlan(plan).flatMap((node) => {
     const finding =
-      checkSeqScanFilter(node) ?? checkFullIndexScan(node) ?? checkTrailingIndexColumn(node, context);
+      checkSeqScanFilter(node) ?? checkFullIndexScan(node, context) ?? checkTrailingIndexColumn(node, context);
     return finding ? [finding] : [];
   });
+}
+
+/**
+ * Tables (`schema.table`) a plan reads, for looking up their index leading columns
+ */
+export function planTables(plan: PlanNode): string[] {
+  return [...new Set(flattenPlan(plan).map(tableName).filter((name): name is string => name !== undefined))];
 }
 
 /**
@@ -73,18 +86,28 @@ function checkSeqScanFilter(node: PlanNode): PlanFinding | undefined {
  * means that column has no index. Range and IS NULL filters are skipped, since
  * pagination walks the primary key on purpose.
  */
-function checkFullIndexScan(node: PlanNode): PlanFinding | undefined {
+function checkFullIndexScan(node: PlanNode, context: PlanRuleContext): PlanFinding | undefined {
   const filter = node.Filter;
   if (!INDEX_SCAN_TYPES.has(node['Node Type']) || !filter || node['Index Cond']) {
     return undefined;
   }
-  if (equalityColumn(filter) === undefined) {
+  const column = equalityColumn(filter);
+  if (column === undefined) {
+    return undefined;
+  }
+
+  // A usable index for this equality filter already exists (its leading column
+  // is the filtered one); the generic planner just chose an ordering index
+  // instead. With real selectivity production uses the usable one, so this is
+  // not a missing index. The guard only guarantees at least one usable index.
+  const table = tableName(node);
+  if (table !== undefined && context.leadingColumnsByTable.get(table)?.has(column)) {
     return undefined;
   }
 
   return {
     kind: FindingKind.FULL_INDEX_SCAN,
-    table: tableName(node),
+    table,
     condition: filter,
     indexName: node['Index Name'],
     hint: indexHint(node, filter),

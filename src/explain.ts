@@ -59,3 +59,36 @@ export async function leadingIndexColumns(client: Client, indexKeys: string[]): 
 
   return new Map(result.rows.map((row) => [row.index_key, row.column_name]));
 }
+
+/**
+ * Columns that lead some valid btree index, per table, keyed by `schema.table`.
+ * A query filtering such a column by equality has a usable index even if the
+ * generic planner chose a different one, so it is not a missing-index finding.
+ */
+export async function tableLeadingColumns(client: Client, tables: string[]): Promise<Map<string, Set<string>>> {
+  if (tables.length === 0) {
+    return new Map();
+  }
+
+  const result = await client.query<{ table_key: string; column_name: string }>(
+    `
+    SELECT n.nspname || '.' || t.relname AS table_key, a.attname AS column_name
+    FROM pg_catalog.pg_index i
+    JOIN pg_catalog.pg_class t ON t.oid = i.indrelid
+    JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+    JOIN pg_catalog.pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_catalog.pg_am am ON am.oid = c.relam
+    JOIN pg_catalog.pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
+    WHERE am.amname = 'btree' AND i.indisvalid AND n.nspname || '.' || t.relname = ANY($1)
+    `,
+    [tables]
+  );
+
+  const byTable = new Map<string, Set<string>>();
+  for (const row of result.rows) {
+    const columns = byTable.get(row.table_key) ?? new Set<string>();
+    columns.add(row.column_name);
+    byTable.set(row.table_key, columns);
+  }
+  return byTable;
+}

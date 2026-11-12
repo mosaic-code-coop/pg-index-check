@@ -11,6 +11,7 @@ function loadPlan(name: string): PlanNode {
 
 const pre18Context = {
   leadingColumns: new Map([['public.orders_org_created_idx', 'org_id']]),
+  leadingColumnsByTable: new Map<string, Set<string>>(),
   checkTrailingIndexColumns: true,
 };
 
@@ -38,6 +39,16 @@ describe('evaluatePlan', () => {
     expect(evaluatePlan(loadPlan('full-index-scan'), pre18Context)).toEqual([
       expect.objectContaining({ kind: FindingKind.FULL_INDEX_SCAN, indexName: 'orders_pkey' }),
     ]);
+  });
+
+  it('does not flag a whole-index scan when a usable index for the filter exists', () => {
+    // The generic planner walked orders_pkey to order by id, but an index leads
+    // with the filtered `status` column, so production can serve the filter.
+    const context = {
+      ...pre18Context,
+      leadingColumnsByTable: new Map([['public.orders', new Set(['status'])]]),
+    };
+    expect(evaluatePlan(loadPlan('full-index-scan'), context)).toEqual([]);
   });
 
   it('flags a bitmap index condition that skips the leading column, only before PostgreSQL 18', () => {

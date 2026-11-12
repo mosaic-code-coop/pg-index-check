@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type pg from 'pg';
 import { FindingKind, IndexCheckError, assertIndexes, checkIndexes, resetCapture } from '../../src/index.js';
+import { tableLeadingColumns } from '../../src/explain.js';
 import { TEST_DATABASE_URL, connectTestClient, createOrdersTable, serverMajorVersion } from './helpers.js';
 
 const options = { connectionString: TEST_DATABASE_URL };
@@ -30,6 +31,27 @@ describe('checkIndexes', () => {
 
     expect(result.statementCount).toBe(2);
     expect(result.findings).toEqual([]);
+  });
+
+  it('reads the leading column of each btree index on a table', async () => {
+    // orders has the primary key on id and orders_org_created_idx on (org_id, created_at)
+    const leading = await tableLeadingColumns(client, ['public.orders']);
+
+    expect(leading.get('public.orders')).toEqual(new Set(['id', 'org_id']));
+  });
+
+  it('does not flag a filter whose column leads an index, even if the planner walks another index', async () => {
+    await client.query('CREATE INDEX IF NOT EXISTS orders_status_idx ON orders (status)');
+    try {
+      // ORDER BY id nudges the planner toward the primary key; status still has a usable index
+      await client.query('SELECT * FROM orders WHERE status = $1 ORDER BY id DESC LIMIT 1', ['open']);
+
+      const { findings } = await checkIndexes(options);
+
+      expect(findings).toEqual([]);
+    } finally {
+      await client.query('DROP INDEX IF EXISTS orders_status_idx');
+    }
   });
 
   it('flags a filter on an unindexed column with a CREATE INDEX hint', async () => {
